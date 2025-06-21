@@ -1,0 +1,66 @@
+version: '3.8'
+
+services:
+  # Banco de Dados PostgreSQL
+  postgres:
+    image: postgres:13
+    container_name: ntume_postgres
+    environment:
+      POSTGRES_DB: ntume_db
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: 123456
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - ntume_network
+
+  # Backend FastAPI
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: ntume_backend
+    environment:
+      - DATABASE_URL=postgresql://postgres:123456@postgres:5432/ntume_db
+      - SECRET_KEY=minha_chave_secreta_muito_segura_123
+      - ALGORITHM=HS256
+      - ACCESS_TOKEN_EXPIRE_MINUTES=30
+      - HOST=0.0.0.0
+      - PORT=8000
+      - DEBUG=True
+    ports:
+      - "8000:8000"
+    depends_on:
+      - postgres
+    volumes:
+      - ./backend:/app
+    networks:
+      - ntume_network
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+
+  # Frontend React
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: ntume_frontend
+    ports:
+      - "3000:3000"
+    depends_on:
+      - backend
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    networks:
+      - ntume_network
+    environment:
+      - REACT_APP_API_URL=http://localhost:8000
+
+volumes:
+  postgres_data:
+
+networks:
+  ntume_network:
+    driver: bridge 
